@@ -12,6 +12,8 @@
 
 #include <string>
 #include <string_view>
+#include <optional>
+#include <chrono>
 
 #ifdef _DEBUG
 #define VERIFY ASSERT
@@ -79,8 +81,8 @@ namespace ModernCppSQLite
 
   struct SQLiteException
   {
-    int32_t ErrorCode = 0;
-    std::string ErrorMessage;
+    const int32_t ErrorCode = 0;
+    const std::string ErrorMessage;
 
     explicit SQLiteException(sqlite3* const connection)
       : ErrorCode(sqlite3_extended_errcode(connection))
@@ -175,10 +177,15 @@ namespace ModernCppSQLite
       return sqlite3_last_insert_rowid(GetAbi());
     }
 
+    sqlite3_int64 TotalChanges() const noexcept
+    {
+      return sqlite3_total_changes64(GetAbi());
+    }
+
     template <typename F>
     void Profile(F callback, void* const context = nullptr)
     {
-      ::sqlite3_profile(GetAbi(), callback, context);
+      ::sqlite3_profile(GetAbi(), reinterpret_cast<void(*)(void*, const char* const, sqlite3_uint64)>(+callback), context);
     }
 
   private:
@@ -242,14 +249,34 @@ namespace ModernCppSQLite
   template <typename T>
   struct SQLiteReader
   {
+    bool GetBoolean(int32_t const column = 0) const noexcept
+    {
+      return (bool)::sqlite3_column_int64(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
     int32_t GetInt32(int32_t const column = 0) const noexcept
     {
       return ::sqlite3_column_int(static_cast<T const*>(this)->GetAbi(), column);
     }
 
+    uint32_t GetUInt32(int32_t const column = 0) const noexcept
+    {
+      return (uint32_t)::sqlite3_column_int(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
     sqlite3_int64 GetInt64(int32_t const column = 0) const noexcept
     {
       return ::sqlite3_column_int64(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    sqlite3_uint64 GetUInt64(int32_t const column = 0) const noexcept
+    {
+      return (sqlite3_uint64)::sqlite3_column_int64(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    time_t GetDateTime(int32_t const column = 0) const noexcept
+    {
+      return (time_t)::sqlite3_column_int64(static_cast<T const*>(this)->GetAbi(), column);
     }
 
     double GetDouble(int32_t const column = 0) const noexcept
@@ -259,7 +286,7 @@ namespace ModernCppSQLite
 
     std::byte const* GetBlob(int32_t const column = 0) const noexcept
     {
-      return static_cast<std::byte const*>(::sqlite3_column_blob(static_cast<T const*>(this)->GetAbi(), column));
+      return reinterpret_cast<std::byte const*>(::sqlite3_column_blob(static_cast<T const*>(this)->GetAbi(), column));
     }
 
     char const* GetString(int32_t const column = 0) const noexcept
@@ -269,17 +296,17 @@ namespace ModernCppSQLite
 
     wchar_t const* GetWideString(int32_t const column = 0) const noexcept
     {
-      return static_cast<wchar_t const*>(::sqlite3_column_text16(static_cast<T const*>(this)->GetAbi(), column));
+      return reinterpret_cast<wchar_t const*>(::sqlite3_column_text16(static_cast<T const*>(this)->GetAbi(), column));
     }
 
     char8_t const* GetU8String(int32_t const column = 0) const noexcept
     {
-      return static_cast<char8_t const*>(::sqlite3_column_text(static_cast<T const*>(this)->GetAbi(), column));
+      return reinterpret_cast<char8_t const*>(::sqlite3_column_text(static_cast<T const*>(this)->GetAbi(), column));
     }
 
     char16_t const* GetU16String(int32_t const column = 0) const noexcept
     {
-      return static_cast<char16_t const*>(::sqlite3_column_text16(static_cast<T const*>(this)->GetAbi(), column));
+      return reinterpret_cast<char16_t const*>(::sqlite3_column_text16(static_cast<T const*>(this)->GetAbi(), column));
     }
 
     int32_t GetBlobLength(int32_t const column = 0) const noexcept
@@ -305,6 +332,91 @@ namespace ModernCppSQLite
     int32_t GetU16StringLength(int32_t const column = 0) const noexcept
     {
       return ::sqlite3_column_bytes16(static_cast<T const*>(this)->GetAbi(), column) / sizeof(char16_t);
+    }
+
+    std::string_view GetColumnDatabaseName(int32_t const column = 0) const noexcept
+    {
+      return ::sqlite3_column_database_name(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::wstring_view GetColumnDatabaseWideName(int32_t const column = 0) const noexcept
+    {
+      return (const wchar_t*)::sqlite3_column_database_name16(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::u8string_view GetColumnDatabaseU8Name(int32_t const column = 0) const noexcept
+    {
+      return (const char8_t*)::sqlite3_column_database_name(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::u16string_view GetColumnDatabaseU16Name(int32_t const column = 0) const noexcept
+    {
+      return (const char16_t*)::sqlite3_column_database_name16(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::string_view GetColumnName(int32_t const column = 0) const noexcept
+    {
+      return ::sqlite3_column_name(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::wstring_view GetColumnWideName(int32_t const column = 0) const noexcept
+    {
+      return (const wchar_t*)::sqlite3_column_name16(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::u8string_view GetColumnU8Name(int32_t const column = 0) const noexcept
+    {
+      return (const char8_t*)::sqlite3_column_name(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::u16string_view GetColumnU16Name(int32_t const column = 0) const noexcept
+    {
+      return (const char16_t*)::sqlite3_column_name16(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::string_view GetColumnOriginName(int32_t const column = 0) const noexcept
+    {
+      return ::sqlite3_column_origin_name(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::wstring_view GetColumnOriginWideName(int32_t const column = 0) const noexcept
+    {
+      return (const wchar_t*)::sqlite3_column_origin_name16(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::u8string_view GetColumnOriginU8Name(int32_t const column = 0) const noexcept
+    {
+      return (const char8_t*)::sqlite3_column_origin_name(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::u16string_view GetColumnOriginU16Name(int32_t const column = 0) const noexcept
+    {
+      return (const char16_t*)::sqlite3_column_origin_name16(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::string_view GetColumnTableName(int32_t const column = 0) const noexcept
+    {
+      return ::sqlite3_column_table_name(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::wstring_view GetColumnTableWideName(int32_t const column = 0) const noexcept
+    {
+      return (const wchar_t*)::sqlite3_column_table_name16(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::u8string_view GetColumnTableU8Name(int32_t const column = 0) const noexcept
+    {
+      return (const char8_t*)::sqlite3_column_table_name(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    std::u16string_view GetColumnTableU16Name(int32_t const column = 0) const noexcept
+    {
+      return (const char16_t*)::sqlite3_column_table_name16(static_cast<T const*>(this)->GetAbi(), column);
+    }
+
+    int32_t GetColumnCount(int32_t const column = 0) const noexcept
+    {
+      return ::sqlite3_column_count(static_cast<T const*>(this)->GetAbi());
     }
 
     SQLiteType GetType(int32_t const column = 0) const noexcept
@@ -432,12 +544,43 @@ namespace ModernCppSQLite
       }
     }
 
+    void Bind(int32_t const index, const SQLiteEnum auto value) const
+    {
+      if (SQLITE_OK != ::sqlite3_bind_int(GetAbi(), index, static_cast<int32_t>(value)))
+      {
+        ThrowLastError();
+      }
+    }
+
     void Bind(int32_t const index, int32_t const value) const
     {
       if (SQLITE_OK != sqlite3_bind_int(GetAbi(), index, value))
       {
         ThrowLastError();
       }
+    }
+
+    void Bind(int32_t const index, uint32_t const value) const
+    {
+      Bind(index, static_cast<int32_t>(value));
+    }
+
+    void Bind(int32_t const index, int64_t const value) const
+    {
+      if (SQLITE_OK != sqlite3_bind_int64(GetAbi(), index, value))
+      {
+        ThrowLastError();
+      }
+    }
+
+    void Bind(int32_t const index, uint64_t const value) const
+    {
+      Bind(index, static_cast<int64_t>(value));
+    }
+
+    void Bind(int32_t const index, bool const value) const
+    {
+      Bind(index, static_cast<int32_t>(value));
     }
 
     void Bind(int32_t const index, double const value) const
@@ -527,6 +670,50 @@ namespace ModernCppSQLite
     void Bind(int32_t const index, std::u16string&& value) const
     {
       if (SQLITE_OK != sqlite3_bind_text16(GetAbi(), index, value.c_str(), static_cast<int32_t>(value.size() * sizeof(char16_t)), SQLITE_TRANSIENT))
+      {
+        ThrowLastError();
+      }
+    }
+
+    void Bind(int32_t const index, std::nullptr_t) const
+    {
+      if (SQLITE_OK != sqlite3_bind_null(GetAbi(), index))
+      {
+        ThrowLastError();
+      }
+    }
+
+    void Bind(int32_t const index, std::nullopt_t) const
+    {
+      Bind(index, nullptr);
+    }
+
+    template<typename Type>
+    void Bind(int32_t const index, const std::optional<Type>& value) const
+    {
+      if (value.has_value())
+      {
+        Bind(index, value.value());
+      }
+      else
+      {
+        Bind(index, std::nullopt);
+      }
+    }
+
+    template <typename Ticks, typename Period>
+    void Bind(int32_t const index, const std::chrono::duration<Ticks, Period>& value) const
+    {
+      if (SQLITE_OK != sqlite3_bind_int64(GetAbi(), index, static_cast<sqlite3_int64>(value.count())))
+      {
+        ThrowLastError();
+      }
+    }
+
+    template <typename Clock, typename Duration = typename Clock::duration>
+    void Bind(int32_t const index, const std::chrono::time_point<Clock, Duration>& value) const
+    {
+      if (SQLITE_OK != sqlite3_bind_int64(GetAbi(), index, static_cast<sqlite3_int64>(value.time_since_epoch())))
       {
         ThrowLastError();
       }

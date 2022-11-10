@@ -7,8 +7,13 @@
 #define ASSERT __noop
 #endif
 
+#include <concepts>
+
 namespace ModernCppSQLite
 {
+  template<typename Type>
+  concept SQLiteEnum = std::is_enum_v<Type>;
+
   template <typename T>
   struct SQLiteHandleTraits
   {
