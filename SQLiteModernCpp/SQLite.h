@@ -79,12 +79,12 @@ namespace ModernCppSQLite
 
   struct SQLiteException
   {
-    int32_t Result = 0;
-    std::string Message;
+    int32_t ErrorCode = 0;
+    std::string ErrorMessage;
 
     explicit SQLiteException(sqlite3* const connection)
-      : Result(sqlite3_extended_errcode(connection))
-      , Message(sqlite3_errmsg(connection))
+      : ErrorCode(sqlite3_extended_errcode(connection))
+      , ErrorMessage(sqlite3_errmsg(connection))
     {
     }
   };
@@ -482,27 +482,27 @@ namespace ModernCppSQLite
 
     void Bind(int32_t const index, std::string const& value) const
     {
-      Bind(index, value.c_str(), value.size());
+      Bind(index, value.c_str(), static_cast<int32_t>(value.size()));
     }
 
     void Bind(int32_t const index, std::wstring const& value) const
     {
-      Bind(index, value.c_str(), value.size() * sizeof(wchar_t));
+      Bind(index, value.c_str(), static_cast<int32_t>(value.size() * sizeof(wchar_t)));
     }
 
     void Bind(int32_t const index, std::u8string const& value) const
     {
-      Bind(index, value.c_str(), value.size() * sizeof(char8_t));
+      Bind(index, value.c_str(), static_cast<int32_t>(value.size() * sizeof(char8_t)));
     }
 
     void Bind(int32_t const index, std::u16string const& value) const
     {
-      Bind(index, value.c_str(), value.size() * sizeof(char16_t));
+      Bind(index, value.c_str(), static_cast<int32_t>(value.size() * sizeof(char16_t)));
     }
 
     void Bind(int32_t const index, std::string&& value) const
     {
-      if (SQLITE_OK != sqlite3_bind_text(GetAbi(), index, value.c_str(), value.size(), SQLITE_TRANSIENT))
+      if (SQLITE_OK != sqlite3_bind_text(GetAbi(), index, value.c_str(), static_cast<int32_t>(value.size()), SQLITE_TRANSIENT))
       {
         ThrowLastError();
       }
@@ -510,7 +510,7 @@ namespace ModernCppSQLite
 
     void Bind(int32_t const index, std::wstring&& value) const
     {
-      if (SQLITE_OK != sqlite3_bind_text16(GetAbi(), index, value.c_str(), value.size() * sizeof(wchar_t), SQLITE_TRANSIENT))
+      if (SQLITE_OK != sqlite3_bind_text16(GetAbi(), index, value.c_str(), static_cast<int32_t>(value.size() * sizeof(wchar_t)), SQLITE_TRANSIENT))
       {
         ThrowLastError();
       }
@@ -518,7 +518,7 @@ namespace ModernCppSQLite
 
     void Bind(int32_t const index, std::u8string&& value) const
     {
-      if (SQLITE_OK != sqlite3_bind_text(GetAbi(), index, (char const* const)value.c_str(), value.size() * sizeof(char8_t), SQLITE_TRANSIENT))
+      if (SQLITE_OK != sqlite3_bind_text(GetAbi(), index, (char const* const)value.c_str(), static_cast<int32_t>(value.size() * sizeof(char8_t)), SQLITE_TRANSIENT))
       {
         ThrowLastError();
       }
@@ -526,7 +526,7 @@ namespace ModernCppSQLite
 
     void Bind(int32_t const index, std::u16string&& value) const
     {
-      if (SQLITE_OK != sqlite3_bind_text16(GetAbi(), index, value.c_str(), value.size() * sizeof(char16_t), SQLITE_TRANSIENT))
+      if (SQLITE_OK != sqlite3_bind_text16(GetAbi(), index, value.c_str(), static_cast<int32_t>(value.size() * sizeof(char16_t)), SQLITE_TRANSIENT))
       {
         ThrowLastError();
       }
